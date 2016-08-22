@@ -1,0 +1,80 @@
+*************************************************************************************
+Testing
+
+Add to Gemfile
+
+gem "minitest"
+
+bundle install
+
+Create a test directory
+
+mkdir test
+touch app_test.rb
+
+
+Example test
+
+ENV["RACK_ENV"] = "test"
+
+require "minitest/autorun"
+require "rack/test"
+
+require_relative "../app"
+
+class AppTest < Minitest::Test
+  include Rack::Test::Methods
+
+  def app
+    Sinatra::Application
+  end
+
+  def test_index
+    get "/"
+    assert_equal 200, last_response.status
+    assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
+    assert_equal "Hello, world!", last_response.body
+  end
+end
+
+
+*************************************************************************************
+General setup
+
+Enable sessions in configure block
+and
+Escape Html for entire site
+
+configure do
+  enable :sessions
+  set :session_secret, 'secret'
+  set :erb, :escape_html => true  (all areas such in the layout.erb where code is being yielded to the site must include == before the yielded code.)
+end
+
+*************************************************************************************
+Convert raw Markup to html with redcarpet
+
+change all file types to file.md
+
+Gemfile
+gem 'redcarpet'
+
+cms.rb
+require 'redcarpet'
+
+create a helper method to accept text and return it in html format
+def render_markdown(text)
+  markdown = Redcarpet::Markdown.new(Redcarpet::Render::HTML)
+  markdown.render(text)
+end
+
+get '/:filename' do
+  file_path = root + "/data/" + params[:filename]
+
+  if File.file?(file_path)
+    load_file_content(file_path)
+  else
+    session[:error] = "#{params[:filename]} does not exist."
+    redirect "/"
+  end
+end

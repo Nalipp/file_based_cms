@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <title>Filebased CMS</title>
+    <meta charset="UTF-8">
+  </head>
+  <body>
+    <header>
+    </header>
+
+    <% if session[:message] %>
+      <div class="flash error">
+        <p><%= session.delete(:message) %></p>
+      </div>
+    <% end %>
+    <main>
+      <%= yield %>
+    </main>
+  </body>
+</html>
