@@ -8,20 +8,37 @@ require_relative "../cms"
 class AppTest < Minitest::Test
   include Rack::Test::Methods
 
+  def setup
+    FileUtils.mkdir_p(data_path)
+  end
+
+  def teardown
+    FileUtils.rm_rf(data_path)
+  end
+
+  def create_document(name, content = "")
+    File.open(File.join(data_path, name), "w") do |file|
+      file.write(content)
+    end
+  end
+
   def app
     Sinatra::Application
   end
 
   def test_index
+    create_document("about.md")
+    create_document("changes.md")
+
     get "/"
     assert_equal 200, last_response.status
     assert_equal "text/html;charset=utf-8", last_response["Content-Type"]
     assert_includes last_response.body, "about.md"
     assert_includes last_response.body, "changes.md"
-    assert_includes last_response.body, "history.md"
   end
 
   def test_history_page
+    create_document("/history.md", "Ruby 0.95 released")
     get "/history.md"
 
     assert_equal 200, last_response.status
@@ -40,7 +57,18 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "incorrect.md does not exist."
   end
 
+  def test_viewing_text_document
+    create_document "history.txt", "1993 - Yukihiro Matsumoto"
+    get "/history.txt"
+
+    assert_equal 200, last_response.status
+    assert_equal "text/plain", last_response["Content-Type"]
+    assert_includes last_response.body, "1993 - Yukihiro Matsumoto"
+  end
+
   def test_viewing_markdown_document
+    create_document "about.md", "# Ruby is..."
+
     get "/about.md"
 
     assert_equal 200, last_response.status
@@ -50,6 +78,7 @@ class AppTest < Minitest::Test
 
   # test/cms_test.rb
   def test_editing_document
+    create_document("changes.md", %q(<button type="submit"))
     get "/changes.md/edit"
 
     assert_equal 200, last_response.status
