@@ -3,18 +3,16 @@
   <head>
     <title>Filebased CMS</title>
     <meta charset="UTF-8">
+    <link rel="stylesheet" href="/stylesheets/main.css">
   </head>
   <body>
     <header>
+
     </header>
 
     <% if session[:message] %>
-      <div class="flash error">
-        <p><%= session.delete(:message) %></p>
-      </div>
+      <p class="message"><%= session.delete(:message) %></p>
     <% end %>
-    <main>
-      <%= yield %>
-    </main>
+    <%= yield %>
   </body>
 </html>
