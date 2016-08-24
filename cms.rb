@@ -36,14 +36,41 @@ def data_path
   end
 end
 
-root = File.expand_path("..", __FILE__)
-
 get "/" do
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map do |path|
     File.basename(path)
   end
   erb :index
+end
+
+def convert_to_md(filename)
+  filename = filename + ".md" if filename[-3..-1] != ".md"
+  filename.gsub(" ", "_")
+end
+
+# Render a new list form
+get "/new" do
+  erb :new
+end
+
+# Create a doc
+post "/create" do
+  filename = params[:filename].to_s
+
+  if filename.size == 0
+    session[:message] = "A name is required."
+    status 422
+    erb :new
+  else
+    filename = convert_to_md(filename)
+    file_path = File.join(data_path, filename)
+
+    File.write(file_path, "")
+    session[:message] = "#{params[:filename]} has been created."
+
+    redirect "/"
+  end
 end
 
 get '/:filename' do

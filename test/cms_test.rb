@@ -38,7 +38,7 @@ class AppTest < Minitest::Test
   end
 
   def test_history_page
-    create_document("/history.md", "Ruby 0.95 released")
+    create_document("history.md", "Ruby 0.95 released")
     get "/history.md"
 
     assert_equal 200, last_response.status
@@ -67,7 +67,7 @@ class AppTest < Minitest::Test
   end
 
   def test_viewing_markdown_document
-    create_document "about.md", "# Ruby is..."
+    create_document "/about.md", "# Ruby is..."
 
     get "/about.md"
 
@@ -78,7 +78,7 @@ class AppTest < Minitest::Test
 
   # test/cms_test.rb
   def test_editing_document
-    create_document("changes.md", %q(<button type="submit"))
+    create_document("/changes.md", %q(<button type="submit"))
     get "/changes.md/edit"
 
     assert_equal 200, last_response.status
@@ -98,5 +98,33 @@ class AppTest < Minitest::Test
     get "/changes.md"
     assert_equal 200, last_response.status
     assert_includes last_response.body, "new content"
+  end
+
+  def test_get_new_document
+    get "/new"
+
+    assert_equal 200, last_response.status
+    assert_includes last_response.body, "<input"
+    assert_includes last_response.body, %q(<button type="submit")
+  end
+
+  def test_create_new_document
+    post "/create", filename: "test.txt"
+    assert_equal 302, last_response.status
+
+    get last_response["location"]
+
+    assert_includes last_response.body, "test.txt has been created"
+
+    get "/"
+    assert_includes last_response.body, "test.txt"
+
+  end
+
+  def test_create_document_without_filename
+    post "/create", filename: ""
+
+    assert_equal 422, last_response.status
+    assert_includes last_response.body, "A name is required."
   end
 end
