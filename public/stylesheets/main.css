@@ -11,3 +11,8 @@ form.inline {
   padding: 10px;
   background: #FFFF99;
 }
+
+.user-status {
+  font-style: italic;
+  font-size: 0.9em;
+}
