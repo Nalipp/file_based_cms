@@ -3,6 +3,10 @@ body {
   font-family: sans-serif;
 }
 
+form.inline {
+  display: inline;
+}
+
 .message {
   padding: 10px;
   background: #FFFF99;
