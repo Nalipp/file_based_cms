@@ -36,6 +36,22 @@ def data_path
   end
 end
 
+def user_signed_in?
+  session.key?(:username)
+end
+
+def require_user_signin
+  unless user_signed_in?
+    session[:message] = "Please sign in."
+    redirect '/'
+  end
+end
+
+def convert_to_md(filename)
+  filename = filename + ".md" if filename[-3..-1] != ".md"
+  filename.gsub(" ", "_")
+end
+
 get "/" do
   pattern = File.join(data_path, "*")
   @files = Dir.glob(pattern).map do |path|
@@ -44,18 +60,17 @@ get "/" do
   erb :index
 end
 
-def convert_to_md(filename)
-  filename = filename + ".md" if filename[-3..-1] != ".md"
-  filename.gsub(" ", "_")
-end
-
 # Render a new list form
 get "/new" do
+  require_user_signin
+
   erb :new
 end
 
 # Create a doc
 post "/create" do
+  require_user_signin
+
   filename = params[:filename].to_s
 
   if filename.size == 0
@@ -86,6 +101,8 @@ end
 
 # Edit the contents of a file
 get "/:filename/edit" do
+  require_user_signin
+
   file_path = File.join(data_path, params[:filename])
 
   @filename = params[:filename]
@@ -96,6 +113,8 @@ end
 
 # Update the contents of a file
 post "/:filename" do
+  require_user_signin
+
   file_path = File.join(data_path, params[:filename])
 
   File.write(file_path, params[:content])
@@ -106,6 +125,8 @@ end
 
 # Delete a doc
 post "/:filename/delete" do
+  require_user_signin
+  
   file_path = File.join(data_path, params[:filename])
 
   File.delete(file_path)

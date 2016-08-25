@@ -16,6 +16,14 @@ class AppTest < Minitest::Test
     FileUtils.rm_rf(data_path)
   end
 
+  def session
+    last_request.env["rack.session"]
+  end
+
+  def admin_session
+    { "rack.session" => { username: "admin"} }
+  end
+
   def create_document(name, content = "")
     File.open(File.join(data_path, name), "w") do |file|
       file.write(content)
@@ -50,11 +58,7 @@ class AppTest < Minitest::Test
     get "/incorrect.md"
 
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-
-    assert_equal 200, last_response.status
-    assert_includes last_response.body, "incorrect.md does not exist."
+    assert_equal "incorrect.md does not exist.", session[:message]
   end
 
   def test_viewing_text_document
@@ -76,53 +80,74 @@ class AppTest < Minitest::Test
     assert_includes last_response.body, "<h1>Ruby is...</h1>"
   end
 
-  # test/cms_test.rb
   def test_editing_document
     create_document("/changes.md", %q(<button type="submit"))
-    get "/changes.md/edit"
+    get "/changes.md/edit", {}, admin_session
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "<textarea"
     assert_includes last_response.body, %q(<button type="submit")
   end
 
-  def test_updating_document
-    post "/changes.md", content: "new content"
+  def test_editing_document_signed_out
+    create_document("/changes.md")
+    get "/changes.md/edit"
 
     assert_equal 302, last_response.status
+    assert_equal "Please sign in.", session[:message]
+  end
 
-    get last_response["Location"]
+  def test_updating_document
+    post "/changes.md", {content: "new content"}, admin_session
 
-    assert_includes last_response.body, "changes.md has been updated"
+    assert_equal 302, last_response.status
+    assert_equal "changes.md has been updated.", session[:message]
 
     get "/changes.md"
     assert_equal 200, last_response.status
     assert_includes last_response.body, "new content"
   end
 
-  def test_get_new_document
-    get "/new"
+  def test_updating_document_signed_out
+    post "/changes.md", content: "new content"
+
+    assert_equal 302, last_response.status
+    assert_equal "Please sign in.", session[:message]
+  end
+
+  def test_view_new_document_form
+    get "/new", {}, admin_session
 
     assert_equal 200, last_response.status
     assert_includes last_response.body, "<input"
     assert_includes last_response.body, %q(<button type="submit")
   end
 
-  def test_create_new_document
-    post "/create", filename: "test.txt"
+  def test_view_new_document_form_signed_out
+    get "/new"
+
     assert_equal 302, last_response.status
+    assert_equal "Please sign in.", session[:message]
+  end
 
-    get last_response["location"]
-
-    assert_includes last_response.body, "test.txt has been created"
+  def test_create_new_document
+    post "/create", {filename: "test.txt"}, admin_session
+    assert_equal 302, last_response.status
+    assert_equal "test.txt has been created.", session[:message]
 
     get "/"
     assert_includes last_response.body, "test.txt"
+  end
 
+  def test_create_new_document_signed_out
+    post "/create", {filename: "test.txt"}
+
+    assert_equal 302, last_response.status
+    assert_equal "Please sign in.", session[:message]
   end
 
   def test_create_document_without_filename
-    post "/create", filename: ""
+    post "/create", {filename: ""}, admin_session
 
     assert_equal 422, last_response.status
     assert_includes last_response.body, "A name is required."
@@ -130,15 +155,21 @@ class AppTest < Minitest::Test
 
   def test_deleteing_document
     create_document("test.txt")
-    post "/test.txt/delete"
 
+    post "/test.txt/delete", {}, admin_session
     assert_equal 302, last_response.status
-
-    get last_response["Location"]
-    assert_includes last_response.body, "test.txt has been deleted."
+    assert_equal "test.txt has been deleted.", session[:message]
 
     get "/"
-    refute_includes last_response.body, "test.txt"
+    refute_includes last_response.body, %q(href="/test.txt")
+  end
+
+  def test_deleteing_document_signed_out
+    create_document("test.txt")
+
+    post "/test.txt/delete"
+    assert_equal 302, last_response.status
+    assert_equal "Please sign in.", session[:message]
   end
 
   def test_signin_form
@@ -153,27 +184,28 @@ class AppTest < Minitest::Test
     post "/users/signin", username: 'admin', password: 'secret'
 
     assert_equal 302, last_response.status
+    assert_equal "Welcome!", session[:message]
+    assert_equal "admin", session[:username]
 
-    get last_response["location"]
-
-    assert_includes last_response.body, "Welcome!"
+    get last_response["Location"]
     assert_includes last_response.body, "Signed in as admin"
   end
 
   def test_signed_in_with_bad_credentials
     post "/users/signin", username: 'baddata', password: 'incorect'
     assert_equal 422, last_response.status
+    assert_equal nil, session[:message]
     assert_includes last_response.body, "Invalid credentials"
   end
 
   def test_signout
-    post "/users/signin", username: 'admin', password: 'secret'
-    get last_response["location"]
-    assert_includes last_response.body, "Welcome!"
+    get "/", {}, {"rack.session" => { username: "admin" } }
+    assert_includes last_response.body, "Signed in as admin."
 
     post "/users/signout"
-    get last_response["location"]
+    get last_response["Location"]
 
+    assert_equal nil, session[:username]
     assert_includes last_response.body, "You have been signed out."
     assert_includes last_response.body, "Sign In"
   end
