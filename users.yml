@@ -1,0 +1,6 @@
+{
+  admin: secret,
+  developer: letmein,
+  bill: "billspassword",
+  sonia: "soniaspassword"
+}

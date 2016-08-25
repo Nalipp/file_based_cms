@@ -6,6 +6,7 @@ require "sinatra/content_for"
 require "tilt/erubis"
 require "redcarpet"
 require "fileutils"
+require "yaml"
 
 configure do
   enable :sessions
@@ -50,6 +51,15 @@ end
 def convert_to_md(filename)
   filename = filename + ".md" if filename[-3..-1] != ".md"
   filename.gsub(" ", "_")
+end
+
+def load_user_credentials
+  credentials_path = if ENV["RACK_ENV"] == "test"
+    File.expand_path("../test/users.yml", __FILE__)
+  else
+    File.expand_path("../users.yml", __FILE__)
+  end
+  YAML.load_file(credentials_path)
 end
 
 get "/" do
@@ -126,7 +136,7 @@ end
 # Delete a doc
 post "/:filename/delete" do
   require_user_signin
-  
+
   file_path = File.join(data_path, params[:filename])
 
   File.delete(file_path)
@@ -142,7 +152,10 @@ end
 
 # User signin
 post "/users/signin" do
-  if params[:username] == "admin" && params[:password] == "secret"
+  credentials = load_user_credentials
+  username = params[:username]
+
+  if credentials.key?(username) && credentials[username] == params[:password]
     session[:username] = params[:username]
     session[:message] = "Welcome!"
     redirect "/"
